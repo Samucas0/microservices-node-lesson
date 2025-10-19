@@ -13,7 +13,9 @@ does not provide an export named 'ROUTING_KEYS' at ModuleJob._instantiate
 // Alterei o module.exports para export const
 export const ROUTING_KEYS = {
   USER_CREATED: 'user.created',
-  ORDER_CREATED: 'order.created'
+  USER_UPDATED: 'user.updated', // <-- ADICIONADO
+  ORDER_CREATED: 'order.created',
+  ORDER_CANCELLED: 'order.cancelled' // <-- ADICIONADO
 };
 
 // ANTIGO COM ERRO

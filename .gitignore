@@ -1,0 +1,30 @@
+# Arquivos do Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependências (O MAIS IMPORTANTE)
+node_modules/
+
+# Arquivos do Prisma
+# (Nunca envie seu banco de dados)
+services/users-service/prisma/dev.db
+services/users-service/prisma/dev.db-journal
+
+# (Adicione esta linha se você também usou prisma no orders-service)
+# services/orders-service/prisma/dev.db
+
+# Arquivos do Docker (se você tiver)
+.dockerignore
+docker-compose.yml.local
+
+# Arquivos de IDE
+.idea/
+.vscode/
+*.swp
