@@ -1,6 +1,8 @@
 FROM node:20-slim
 WORKDIR /app
 
+RUN apt-get update -y && apt-get install -y openssl
+
 COPY services/users-service/package.json ./package.json
 RUN npm install --only=production
 
@@ -17,4 +19,4 @@ COPY common ./common
 
 ENV PORT=3001
 EXPOSE 3001
-CMD ["npx", "prisma", "db", "push", "--accept-data-loss", "&&", "npm", "start"]
+CMD ["/bin/sh", "-c", "npx prisma db push --accept-data-loss && npm start"]

@@ -130,7 +130,7 @@ const circuitBreakerOptions = {
   errorThresholdPercentage: 50,
   resetTimeout: 10000 
 };
-const breaker = opossum(fetchUserAction, circuitBreakerOptions);
+const breaker = new opossum(fetchUserAction, circuitBreakerOptions);
 breaker.on('open', () => console.error('[orders] Circuit breaker opened for users-service'));
 breaker.on('close', () => console.log('[orders] Circuit breaker closed for users-service'));
 breaker.on('fallback', () => console.warn('[orders] Circuit breaker fallback: users-service indisponível.'));
