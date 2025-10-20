@@ -10,7 +10,8 @@
     "amqplib": "^0.10.4",
     "express": "^4.19.2",
     "morgan": "^1.10.0",
+    "nanoid": "^5.0.7",
     "node-fetch": "^3.3.2",
-    "nanoid": "^5.0.7"
+    "opossum": "^8.1.3"
   }
 }

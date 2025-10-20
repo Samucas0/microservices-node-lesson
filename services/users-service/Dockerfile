@@ -8,12 +8,13 @@ RUN npm install --only=production
 COPY services/users-service/prisma ./prisma
 RUN npx prisma generate
 
+# Copia o arquivo da API
+COPY services/users-service/openapi.yaml ./openapi.yaml
+
 COPY services/users-service/src ./src
 
 COPY common ./common
 
 ENV PORT=3001
 EXPOSE 3001
-# Altera o CMD para rodar migrações antes de iniciar
-# (db push é mais simples para SQLite em dev/docker)
 CMD ["npx", "prisma", "db", "push", "--accept-data-loss", "&&", "npm", "start"]

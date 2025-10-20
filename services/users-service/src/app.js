@@ -1,13 +1,30 @@
 // CONTEÚDO DE services/users-service/src/app.js
+import swaggerUi from 'swagger-ui-express'; 
+import YAML from 'yamljs'; 
+import path from 'path'; 
+import { fileURLToPath } from 'url';
 import express from 'express';
 import morgan from 'morgan';
 import { PrismaClient } from '@prisma/client'; 
 import { createChannel } from './amqp.js';
 import { ROUTING_KEYS } from '../common/events.js';
 
+// Workaround para __dirname em ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 app.use(express.json());
 app.use(morgan('dev'));
+
+try {
+  // Carrega o YAML (path.join volta um nível de /src para /)
+  const swaggerDocument = YAML.load(path.join(__dirname, '../openapi.yaml'));
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+  console.log('[users] Swagger UI running on /api-docs');
+} catch (e) {
+  console.error('Failed to load openapi.yaml:', e.message);
+}
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://guest:guest@localhost:5672';
 const EXCHANGE = process.env.EXCHANGE || 'app.topic';
@@ -15,13 +32,28 @@ const EXCHANGE = process.env.EXCHANGE || 'app.topic';
 const prisma = new PrismaClient(); 
 
 let amqp = null;
-(async () => {
+const connectAMQP = async (retries = 5, delay = 3000) => {
   try {
     amqp = await createChannel(RABBITMQ_URL, EXCHANGE);
     console.log('[users] AMQP connected');
+    
+    // (Qualquer lógica de consumidor iria aqui)
+    
   } catch (err) {
-    console.error('[users] AMQP connection failed:', err.message);
+    console.error(`[users] AMQP connection failed: ${err.message}`);
+    if (retries > 0) {
+      console.log(`[users] Retrying AMQP connection in ${delay / 1000}s... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      // Tenta novamente com backoff exponencial
+      await connectAMQP(retries - 1, delay * 2); 
+    } else {
+      console.error('[users] AMQP connection failed. Max retries reached.');
+    }
   }
+};
+
+(async () => {
+  await connectAMQP(); // <-- Chama a nova função
 })();
 
 app.get('/health', (req, res) => res.json({ ok: true, service: 'users' }));

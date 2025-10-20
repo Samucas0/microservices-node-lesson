@@ -1,6 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
 import fetch from 'node-fetch';
+import opossum from 'opossum';
 import { nanoid } from 'nanoid';
 import { createChannel } from './amqp.js';
 import { ROUTING_KEYS } from '../common/events.js';
@@ -79,6 +80,55 @@ async function fetchWithTimeout(url, ms) {
   }
 }
 
+async function fetchWithRetry(url, timeout, retries = 3, delay = 300) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const res = await fetchWithTimeout(url, timeout);
+      if (res.ok) return res; // Sucesso
+      
+      console.warn(`[orders] fetch failed (${res.status}). Retrying (${i + 1}/${retries})...`);
+    } catch (err) {
+      // Ignora erro (ex: timeout) e tenta de novo
+      console.warn(`[orders] fetch error: ${err.message}. Retrying (${i + 1}/${retries})...`);
+    }
+    // Espera antes da próxima tentativa
+    await new Promise(resolve => setTimeout(resolve, delay)); 
+  }
+  // Se todas as tentativas falharem, lança um erro
+  throw new Error(`Failed to fetch ${url} after ${retries} retries.`);
+}
+
+// Ação que o circuit breaker vai executar
+async function fetchUserAction(userId) {
+  // Usar a função fetchWithTimeout que já existe
+  const resp = await fetchWithTimeout(`${USERS_BASE_URL}/${userId}`, HTTP_TIMEOUT_MS);
+  if (!resp.ok) {
+    // Se a resposta não for OK (404, 500), considera falha
+    throw new Error(`User service returned ${resp.status}`);
+  }
+  return resp; // Sucesso
+}
+
+// Configuração do Circuit Breaker
+const circuitBreakerOptions = {
+  timeout: HTTP_TIMEOUT_MS, // Tempo limite da chamada
+  errorThresholdPercentage: 50, // Abre se 50% das chamadas falharem
+  resetTimeout: 10000 // Tenta fechar o circuito após 10 segundos
+};
+
+const breaker = opossum(fetchUserAction, circuitBreakerOptions);
+
+// Eventos para log
+breaker.on('open', () => console.error('[orders] Circuit breaker opened for users-service'));
+breaker.on('close', () => console.log('[orders] Circuit breaker closed for users-service'));
+breaker.on('fallback', () => console.warn('[orders] Circuit breaker fallback: users-service indisponível.'));
+
+// O fallback será usar o cache (tratado na rota)
+// Aqui, apenas relançamos um erro específico se o circuito abrir
+breaker.fallback(() => {
+  throw new Error('CIRCUIT_OPEN');
+});
+
 // Alteracão: endpoint para cancelar pedido
 app.post('/orders/:id/cancel', async (req, res) => {
   const orderId = req.params.id;
@@ -102,22 +152,29 @@ app.post('/orders/:id/cancel', async (req, res) => {
   res.json(order); // Retorna o pedido atualizado
 });
 
+// (substitua a rota app.post('/', ...) original por esta)
 app.post('/', async (req, res) => {
   const { userId, items, total } = req.body || {};
   if (!userId || !Array.isArray(items) || typeof total !== 'number') {
     return res.status(400).json({ error: 'userId, items[], total<number> são obrigatórios' });
   }
 
-  // 1) Validação síncrona (HTTP) no Users Service
+  // 1) Validação síncrona (HTTP) via Circuit Breaker
   try {
-    const resp = await fetchWithTimeout(`${USERS_BASE_URL}/${userId}`, HTTP_TIMEOUT_MS);
-    if (!resp.ok) return res.status(400).json({ error: 'usuário inválido' });
+    // Em vez de fetch, usamos o breaker.fire
+    await breaker.fire(userId); 
+    // Se chegou aqui, a chamada foi OK
+    
   } catch (err) {
-    console.warn('[orders] users-service timeout/failure, tentando cache...', err.message);
-    // fallback: usar cache populado por eventos (assíncrono)
+    console.warn(`[orders] users-service call failed: ${err.message}`);
+    
+    // Se o circuito está aberto ou houve falha/timeout, tentar o cache
     if (!userCache.has(userId)) {
-      return res.status(503).json({ error: 'users-service indisponível e usuário não encontrado no cache' });
+      // Define o status 503 (Service Unavailable) se o circuito estiver aberto
+      const status = err.message === 'CIRCUIT_OPEN' ? 503 : 503; // 503 em ambos os casos
+      return res.status(status).json({ error: 'users-service indisponível e usuário não encontrado no cache' });
     }
+    console.log('[orders] Usando cache como fallback (circuit half-open/open ou falha).');
   }
 
   const id = `o_${nanoid(6)}`;
@@ -135,9 +192,4 @@ app.post('/', async (req, res) => {
   }
 
   res.status(201).json(order);
-});
-
-app.listen(PORT, () => {
-  console.log(`[orders] listening on http://localhost:${PORT}`);
-  console.log(`[orders] users base url: ${USERS_BASE_URL}`);
 });

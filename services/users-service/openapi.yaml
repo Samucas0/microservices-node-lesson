@@ -1,0 +1,82 @@
+openapi: 3.0.0
+info:
+  title: Users Service
+  version: 1.0.0
+  description: Serviço de gerenciamento de usuários.
+paths:
+  /:
+    get:
+      summary: Lista todos os usuários
+      responses:
+        '200':
+          description: Uma lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: Cria um novo usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '201':
+          description: Usuário criado
+        '400':
+          description: Dados inválidos
+        '409':
+          description: Email já existe (se usando Prisma)
+  /{id}:
+    get:
+      summary: Busca um usuário por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: O usuário encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Usuário não encontrado
+
+components:
+  schemas:
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Bruno Nascimento"
+        email:
+          type: string
+          example: "bruno@example.com"
+      required: [name, email]
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "u_AbC123"
+        name:
+          type: string
+          example: "Bruno Nascimento"
+        email:
+          type: string
+          example: "bruno@example.com"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
