@@ -1,0 +1,115 @@
+# NOVO ARQUIVO: services/orders-service/openapi.yaml
+openapi: 3.0.0
+info:
+  title: Orders Service
+  version: 1.0.0
+  description: Serviço de gerenciamento de pedidos.
+paths:
+  /:
+    get:
+      summary: Lista todos os pedidos
+      responses:
+        '200':
+          description: Uma lista de pedidos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+    post:
+      summary: Cria um novo pedido
+      description: Valida o usuário (com circuit breaker e fallback para cache) antes de criar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderInput'
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: Dados inválidos
+        '503':
+          description: Serviço de usuários indisponível (Circuit Breaker)
+
+  # CORREÇÃO: O path correto para cancelar é só '/{id}/cancel'
+  /{id}/cancel: 
+    post:
+      summary: Cancela um pedido
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "o_123456"
+      responses:
+        '200':
+          description: O pedido cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Pedido não encontrado
+
+components:
+  schemas:
+    OrderInput:
+      type: object
+      properties:
+        userId:
+          type: string
+          example: "c1f3e2b9-2f1a-4f9a-8f1a-6c1e2b3c4d5e"
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku: 
+                type: string
+                example: "BOOK-123"
+              qty:
+                type: integer
+                example: 1
+        total:
+          type: number
+          example: 120.50
+      required: [userId, items, total]
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "o_AbC123"
+        userId:
+          type: string
+          example: "c1f3e2b9-2f1a-4f9a-8f1a-6c1e2b3c4d5e"
+        items:
+          type: array # Note: O Prisma salva Json, mas o OpenAPI descreve como array
+          items:
+            type: object
+            properties:
+              sku: 
+                type: string
+              qty:
+                type: integer
+        total:
+          type: number
+          example: 120.50
+        status:
+          type: string
+          example: "created" # ou "cancelled"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time

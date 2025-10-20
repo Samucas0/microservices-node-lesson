@@ -1,0 +1,19 @@
+// CONTEÚDO ATUALIZADO DE: services/orders-service/prisma/schema.prisma
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Order {
+  id        String   @id 
+  userId    String
+  items     String // <-- MUDOU DE Json para String
+  total     Float
+  status    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

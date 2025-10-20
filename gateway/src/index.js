@@ -1,3 +1,4 @@
+// CONTEÚDO ATUALIZADO DE: gateway/src/index.js
 import express from 'express';
 import morgan from 'morgan';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -16,6 +17,7 @@ app.get('/health', (req, res) => res.json({ ok: true, service: 'gateway' }));
 
 // Roteamento de APIs
 
+// --- USERS ---
 // Rota específica para a UI do Swagger (DEVE VIR ANTES de /users)
 app.use('/users/api-docs', createProxyMiddleware({
   target: USERS_URL,
@@ -29,8 +31,20 @@ app.use('/users', createProxyMiddleware({
   pathRewrite: {'^/users': ''}
 }));
 
+// --- ORDERS (EXERCÍCIO 6) ---
+app.use('/orders/api-docs', createProxyMiddleware({
+  target: ORDERS_URL,
+  changeOrigin: true,
+  pathRewrite: {'^/orders/api-docs': '/api-docs'} // Remove /orders
+}));
+
 app.use('/orders', createProxyMiddleware({
   target: ORDERS_URL,
   changeOrigin: true,
   pathRewrite: {'^/orders': ''}
 }));
+
+// Iniciar o Gateway
+app.listen(PORT, () => {
+  console.log(`[gateway] listening on http://localhost:${PORT}`);
+});

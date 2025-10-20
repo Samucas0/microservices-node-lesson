@@ -1,3 +1,4 @@
+# CONTEÚDO ATUALIZADO DE: services/users-service/openapi.yaml
 openapi: 3.0.0
 info:
   title: Users Service
@@ -50,6 +51,36 @@ paths:
         '404':
           description: Usuário não encontrado
 
+    # ### INÍCIO DA ATUALIZAÇÃO (EXERCÍCIO 1) ###
+    put:
+      summary: Atualiza um usuário por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '200':
+          description: O usuário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Dados inválidos
+        '404':
+          description: Usuário não encontrado
+        '409':
+          description: Email já existe
+    # ### FIM DA ATUALIZAÇÃO (EXERCÍCIO 1) ###
+
 components:
   schemas:
     UserInput:
@@ -57,23 +88,24 @@ components:
       properties:
         name:
           type: string
-          example: "Bruno Nascimento"
+          example: "Samuel Fernandes"
         email:
           type: string
-          example: "bruno@example.com"
+          example: "samuel@example.com"
       required: [name, email]
     User:
       type: object
       properties:
         id:
           type: string
-          example: "u_AbC123"
+          # O schema do users-service usa @default(uuid())
+          example: "c1f3e2b9-2f1a-4f9a-8f1a-6c1e2b3c4d5e" 
         name:
           type: string
-          example: "Bruno Nascimento"
+          example: "Samuel Fernandes"
         email:
           type: string
-          example: "bruno@example.com"
+          example: "samuel@example.com"
         createdAt:
           type: string
           format: date-time
